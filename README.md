@@ -4,9 +4,9 @@
 
 ## 🛠 环境变量（在 Koyeb 中设置）
 
-- `ENV_BOT_TOKEN`: 从 @BotFather 获取的 Telegram Bot Token
-- `ENV_BOT_SECRET`: 使用 uuidgenerator.net 随机生成的 UUID
-- `ENV_ADMIN_UID`: 使用 @username_to_id_bot 获取你的 Telegram 用户 ID
+- `ENV_BOT_TOKEN`: 从[@BotFather](https://t.me/BotFather)获取的 Telegram Bot Token
+- `ENV_BOT_SECRET`: 使用[uuidgenerator](https://www.uuidgenerator.net/)随机生成的 UUID
+- `ENV_ADMIN_UID`: 使用[@username_to_id_bot](https://t.me/username_to_id_bot)获取你的 Telegram 用户 ID
 
 ## 🚀 部署步骤
 
