@@ -1,2 +1,0 @@
-# nfd-koyeb
-nfd-koyeb
