@@ -8,6 +8,8 @@ BOT_TOKEN = os.getenv("ENV_BOT_TOKEN")
 BOT_SECRET = os.getenv("ENV_BOT_SECRET")
 ADMIN_UID = os.getenv("ENV_ADMIN_UID")
 
+send_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+
 @app.get("/")
 def root():
     return {"status": "nfd bot is running"}
@@ -18,26 +20,36 @@ async def telegram_webhook(secret: str, request: Request):
         raise HTTPException(status_code=403, detail="Invalid secret")
     data = await request.json()
     if "message" in data:
-        chat_id = str(data["message"]["chat"]["id"])
-        text = data["message"].get("text", "")
+        message = data["message"]
+        chat_id = str(message["chat"]["id"])
+        text = message.get("text", "")
 
-        send_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        # 管理员发消息给机器人，格式要求：回复某条消息（那条消息是用户消息）
+        if chat_id == ADMIN_UID:
+            # 判断是否为回复消息
+            if "reply_to_message" in message:
+                # 取出被回复的消息的用户ID
+                replied_message = message["reply_to_message"]
+                if "from" in replied_message and "id" in replied_message["from"]:
+                    user_id = str(replied_message["from"]["id"])
+                    # 转发管理员消息给普通用户
+                    requests.post(send_url, json={
+                        "chat_id": user_id,
+                        "text": text
+                    })
+                    return {"status": f"message sent to user {user_id}"}
+            # 如果不是回复消息，提示管理员
+            requests.post(send_url, json={
+                "chat_id": ADMIN_UID,
+                "text": "请通过回复用户消息来发送回复。"
+            })
+            return {"status": "no reply_to_message"}
 
-        if chat_id != ADMIN_UID:
-            # 如果不是管理员，转发消息给管理员
+        else:
+            # 普通用户消息，转发给管理员，带上用户id方便回复
             forward_text = f"【来自用户 {chat_id} 的消息】：\n{text}"
             requests.post(send_url, json={
                 "chat_id": ADMIN_UID,
                 "text": forward_text
             })
-            return {"status": "forwarded to admin"}
-
-        else:
-            # 管理员发来的消息，回复 Echo
-            reply = f"Echo: {text}"
-            requests.post(send_url, json={
-                "chat_id": chat_id,
-                "text": reply
-            })
-
-    return {"status": "ok"}
+            return {"status"
