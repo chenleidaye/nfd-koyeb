@@ -8,8 +8,6 @@ BOT_TOKEN = os.getenv("ENV_BOT_TOKEN")
 BOT_SECRET = os.getenv("ENV_BOT_SECRET")
 ADMIN_UID = os.getenv("ENV_ADMIN_UID")
 
-send_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
 @app.get("/")
 def root():
     return {"status": "nfd bot is running"}
@@ -19,32 +17,31 @@ async def telegram_webhook(secret: str, request: Request):
     if secret != BOT_SECRET:
         raise HTTPException(status_code=403, detail="Invalid secret")
     data = await request.json()
+
     if "message" in data:
         message = data["message"]
-        chat_id = str(message["chat"]["id"])
+        chat_id = message["chat"]["id"]
         text = message.get("text", "")
 
-        if chat_id == ADMIN_UID:
-            if "reply_to_message" in message:
-                replied_message = message["reply_to_message"]
-                if "from" in replied_message and "id" in replied_message["from"]:
-                    user_id = str(replied_message["from"]["id"])
-                    requests.post(send_url, json={
-                        "chat_id": user_id,
-                        "text": text
-                    })
-                    return {"status": f"message sent to user {user_id}"}
-            requests.post(send_url, json={
-                "chat_id": ADMIN_UID,
-                "text": "请通过回复用户消息来发送回复。"
-            })
-            return {"status": "no reply_to_message"}
+        # 管理员主动回复某个用户
+        if str(chat_id) == ADMIN_UID and "reply_to_message" in message:
+            reply_msg = message["reply_to_message"]
+            if "forward_from" in reply_msg:
+                user_id = reply_msg["forward_from"]["id"]
+                reply = f"💬 管理员回复：{text}"
+                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json={
+                    "chat_id": user_id,
+                    "text": reply
+                })
+                return {"status": "replied to user"}
 
-        else:
-            forward_text = f"【来自用户 {chat_id} 的消息】：\n{text}"
-            requests.post(send_url, json={
+        # 普通用户发消息，自动转发给管理员
+        if str(chat_id) != ADMIN_UID:
+            forward_url = f"https://api.telegram.org/bot{BOT_TOKEN}/forwardMessage"
+            requests.post(forward_url, json={
                 "chat_id": ADMIN_UID,
-                "text": forward_text
+                "from_chat_id": chat_id,
+                "message_id": message["message_id"]
             })
             return {"status": "forwarded to admin"}
 
